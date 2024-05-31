@@ -20,6 +20,12 @@
 
 /*=====[Definition macros of private constants]==============================*/
 
+#define IDENTIFICAR 0 
+
+#define CONTROLAR 1 
+
+#define TAREA CONTROLAR
+
 /*=====[Definitions of extern global variables]==============================*/
 
 /*=====[Definitions of public global variables]==============================*/
@@ -33,8 +39,11 @@ int main( void )
    boardInit();
 
    // Create a task in freeRTOS with static memory
-//    CONTROLLER_Init();
+   #if(TAREA==CONTROLAR)
+   CONTROLLER_Init();
+   #elif(TAREA==IDENTIFICAR)
    IDENTIFICACION_Init();
+   #endif
    vTaskStartScheduler(); // Initialize scheduler
 
    while( true ); // If reach heare it means that the scheduler could not start

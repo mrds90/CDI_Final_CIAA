@@ -22,7 +22,7 @@
 #define OPEN_LOOP_CONTROL   1
 #define PID_CONTROL         2
 
-#define CONTROL_TASK OPEN_LOOP_CONTROL
+#define CONTROL_TASK PID_CONTROL
 
 #define V_TO_MV(x)  ((x) * 1000)
 #define N_SAMPLES (1 << 8)

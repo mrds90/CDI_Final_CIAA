@@ -10,12 +10,12 @@
 
 /*========= [DEPENDENCIES] =====================================================*/
 
+#include "interface.h"
+
 #define SIMULATED 0
 #define REAL      1
+#define PLANTA SIMULATED
 
-#define PLANTA REAL
-
-#include "interface.h"
 #if (PLANTA == SIMULATED)
 #include "real_world.h"
 #elif (PLANTA == REAL)
