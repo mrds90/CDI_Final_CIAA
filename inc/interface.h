@@ -30,7 +30,7 @@ void INTERFACE_Init(void);
 
 void INTERFACE_DACWriteMv(uint16_t output_dac_mv);
 
-uint16_t INTERFACE_ADCRead(void);
+uint16_t INTERFACE_ADCRead(uint8_t ch);
 
 #ifdef  __cplusplus
 }

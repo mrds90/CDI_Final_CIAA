@@ -32,17 +32,21 @@
 
 /*========= [PRIVATE FUNCTION DECLARATIONS] ====================================*/
 
-void generate_prbs_signal(double *u, int size);
+static void generate_prbs_signal(double *u, int size);
 
-void IdentificacionTask(void* not_used);
+static void IdentificacionTask(void* not_used);
 
-void acquire_output_signal(double *u, double *y, int size);
+static void acquire_output_signal(double *u, double *y, int size);
 
-void invert_matrix(double A[5][5], double A_inv[5][5]);
+static void invert_matrix(double A[5][5], double A_inv[5][5]);
 
-void least_squares(double *u, double *y, int size, double *a, double *b);
+static void least_squares(double *u, double *y, int size, double *a, double *b);
 
-void IdentificacionTask(void* not_used);
+static void IdentificacionTask(void* not_used);
+
+static double q15_mult(double a, double b);
+
+static double q15_div(double a, double b);
 
 /*========= [INTERRUPT FUNCTION DECLARATIONS] ==================================*/
 
@@ -66,7 +70,7 @@ void IDENTIFICACION_Init(void) {
 
 /*========= [PRIVATE FUNCTION IMPLEMENTATION] ==================================*/
 
-void IdentificacionTask(void* not_used) {
+static void IdentificacionTask(void* not_used) {
     INTERFACE_Init();   
     OSAL_TASK_Delay(2000);
     double a[3], b[2];
@@ -88,7 +92,18 @@ void IdentificacionTask(void* not_used) {
 
 }
 
-void generate_prbs_signal(double *u, int size) {
+double q15_mult(double a, double b) {
+    return (a * b);
+}
+
+// Función para dividir dos números Q15
+double q15_div(double a, double b) {
+    // Asegurarse de que no hay división por cero
+
+    return (double)(a / b);
+}
+
+static void generate_prbs_signal(double *u, int size) {
     uint16_t lfsr = 0xACE1u; // Estado inicial no nulo
     uint16_t bit;
 
@@ -102,20 +117,20 @@ void generate_prbs_signal(double *u, int size) {
     }
 }
 
-void acquire_output_signal(double *u, double *y, int size) {
+static void acquire_output_signal(double *u, double *y, int size) {
     STATIC osal_tick_t last_wake;
     last_wake = OSAL_TASK_GetTickCount();
     
     for (int i = 0; i < size; i++) {
         INTERFACE_DACWriteMv(u[i]*1000);
-        y[i] = (float)(INTERFACE_ADCRead()) / 1000.0;
+        y[i] = (float)(INTERFACE_ADCRead(1)) / 1000.0;
         OSAL_TASK_DelayUntil(&last_wake,OSAL_MS_TO_TICKS(5));
 
     }
 }
 
 // Función para invertir una matriz 5x5 (Gauss-Jordan)
-void invert_matrix(double A[5][5], double A_inv[5][5]) {
+static void invert_matrix(double A[5][5], double A_inv[5][5]) {
     int i, j, k;
     double ratio, a;
 
@@ -130,53 +145,75 @@ void invert_matrix(double A[5][5], double A_inv[5][5]) {
     for (i = 0; i < 5; i++) {
         a = A[i][i];
         for (j = 0; j < 5; j++) {
-            A[i][j] /= a;
-            A_inv[i][j] /= a;
+            A[i][j] = q15_div(A[i][j], a);
+            A_inv[i][j] = q15_div(A_inv[i][j], a);
         }
         for (k = 0; k < 5; k++) {
             if (k != i) {
                 ratio = A[k][i];
                 for (j = 0; j < 5; j++) {
-                    A[k][j] -= ratio * A[i][j];
-                    A_inv[k][j] -= ratio * A_inv[i][j];
+                    A[k][j] -= q15_mult(ratio, A[i][j]);
+                    A_inv[k][j] -= q15_mult(ratio, A_inv[i][j]);
                 }
             }
         }
     }
 }
 
+
 // Función para resolver el sistema de ecuaciones utilizando cuadrados mínimos
 void least_squares(double *u, double *y, int size, double *a, double *b) {
-    static double X[DATA_SIZE][5]; // Matriz de diseño
-    static double Y[DATA_SIZE];    // Vector de salida
-    static double Xt[5][DATA_SIZE]; // Transpuesta de X
-    static double XtX[5][5];       // Xt * X
-    static double XtY[5];          // Xt * Y
-    static double invXtX[5][5];    // Inversa de XtX
+    static double Phi[DATA_SIZE][5] = {
+        [0 ... DATA_SIZE -1 ] = {
+            [0 ... 4] = 0
+        }
+    }; // Matriz de diseño
+    static double Y[DATA_SIZE] = {[0 ... DATA_SIZE -1 ] = 0};    // Vector de salida
+    static double PhiT[5][DATA_SIZE]; // Transpuesta de Phi
+    static double PhiTPhi[5][5];       // PhiT * Phi
+    static double XtY[5];          // PhiT * Y
+    static double invPhiTPhi[5][5];    // Inversa de PhiTPhi
+    static double invPhiTPhiPhiT[5][DATA_SIZE] = {
+        [0 ... 4] = {
+            [0 ... DATA_SIZE -1 ] = 0
+        }
+    };
 
     // Llenar la matriz de diseño y el vector de salida
-    for (int i = 3; i < size; i++) {
-        X[i][0] = y[i - 1];
-        X[i][1] = y[i - 2];
-        X[i][2] = y[i - 3];
-        X[i][3] = u[i];
-        X[i][4] = u[i - 1];
-        Y[i] = y[i];
+    for (int i = 2; i < (size); i++) {
+        Phi[i-2][0] = y[i - 1];
+        Phi[i-2][1] = y[i - 2];
+        Phi[i-2][2] = u[i];
+        Phi[i-2][3] = u[i-1];
+        Phi[i-2][4] = u[i-2];
+        Y[i - 2] = y[i];
     }
 
-    // Calcular Xt
+    // Calcular PhiT
     for (int i = 0; i < 5; i++) {
-        for (int j = 3; j < size; j++) {
-            Xt[i][j] = X[j][i];
+        for (int j = 0; j < size; j++) {
+            PhiT[i][j] = Phi[j][i];
         }
     }
 
-    // Calcular XtX
+    // Calcular PhiTPhi
     for (int i = 0; i < 5; i++) {
         for (int j = 0; j < 5; j++) {
-            XtX[i][j] = 0;
-            for (int k = 3; k < size; k++) {
-                XtX[i][j] += Xt[i][k] * X[k][j];
+            PhiTPhi[i][j] = 0;
+            for (int k = 0; k < size; k++) {
+                PhiTPhi[i][j] += q15_mult(PhiT[i][k], Phi[k][j]);
+            }
+        }
+    }
+
+    invert_matrix(PhiTPhi, invPhiTPhi);
+
+    // Calcular invPhiTPhiPhiT
+    for (int i = 0; i < 5; i++) {
+        for (int j = 0; j < size; j++) {
+            invPhiTPhiPhiT[i][j] = 0;
+            for (int k = 0; k < 5; k++) {
+                invPhiTPhiPhiT[i][j] += q15_mult(invPhiTPhi[i][k], PhiT[k][j]);
             }
         }
     }
@@ -184,28 +221,17 @@ void least_squares(double *u, double *y, int size, double *a, double *b) {
     // Calcular XtY
     for (int i = 0; i < 5; i++) {
         XtY[i] = 0;
-        for (int k = 3; k < size; k++) {
-            XtY[i] += Xt[i][k] * Y[k];
+        for (int j = 0; j < size; j++) {
+            XtY[i] += q15_mult(invPhiTPhiPhiT[i][j], Y[j]);
         }
     }
 
-    // Invertir XtX
-    invert_matrix(XtX, invXtX);
 
-    // Resolver para los coeficientes a y b
-    static  double result[5];
-    for (int i = 0; i < 5; i++) {
-        result[i] = 0;
-        for (int j = 0; j < 5; j++) {
-            result[i] += invXtX[i][j] * XtY[j];
-        }
-    }
-
-    a[0] = result[0];
-    a[1] = result[1];
-    a[2] = result[2];
-    b[0] = result[3];
-    b[1] = result[4];
+    a[0] = 1;
+    a[1] = XtY[0];
+    a[2] = XtY[1];
+    b[0] = XtY[2];
+    b[1] = XtY[3];
 }
 
 /*========= [INTERRUPT FUNCTION IMPLEMENTATION] ================================*/

@@ -21,8 +21,9 @@
 
 #define OPEN_LOOP_CONTROL   1
 #define PID_CONTROL         2
+#define POLE_PLACEMENT      3
 
-#define CONTROL_TASK PID_CONTROL
+#define CONTROL_TASK POLE_PLACEMENT
 
 #define V_TO_MV(x)  ((x) * 1000)
 #define N_SAMPLES (1 << 8)
@@ -44,6 +45,10 @@
 
 /*========= [PRIVATE DATA TYPES] ===============================================*/
 
+typedef struct {
+	float K[2];
+	float Ko;
+} pole_placement_config_t;
 
 /*========= [TASK DECLARATIONS] ================================================*/
 
@@ -51,9 +56,13 @@ STATIC void CONTROLLER_SquareOpenLoop(void *per);
 
 STATIC void CONTROLLER_PID(void *per);
 
+static void CONTROLLER_PolePlacementControl(void *per);
+
 /*========= [PRIVATE FUNCTION DECLARATIONS] ====================================*/
 
 STATIC int32_t PidRecurrenceFunction(int32_t input);
+
+STATIC double PolePlacementControl(pole_placement_config_t *config, double state[2], double reference);
 
 /*========= [INTERRUPT FUNCTION DECLARATIONS] ==================================*/
 
@@ -76,6 +85,9 @@ void CONTROLLER_Init(void) {
     OSAL_TASK_Create(&controller_task, CONTROLLER_SquareOpenLoop, (void *)(&period), TASK_PRIORITY_NORMAL);
     #elif (CONTROL_TASK == PID_CONTROL)
     OSAL_TASK_Create(&controller_task, CONTROLLER_PID, (void *)(&period), TASK_PRIORITY_NORMAL);
+    #elif (CONTROL_TASK ==POLE_PLACEMENT)
+    OSAL_TASK_Create(&controller_task, CONTROLLER_PolePlacementControl, (void *)(&period), TASK_PRIORITY_NORMAL);
+
     #endif
 
 }
@@ -92,7 +104,7 @@ STATIC void CONTROLLER_SquareOpenLoop(void *per) {
     {   
         uint16_t u = output[r_index];
         INTERFACE_DACWriteMv(u);
-        input_mv = INTERFACE_ADCRead();
+        input_mv = INTERFACE_ADCRead(1);
 
         count++;
         if (count >= ((period * 1000 / 2) / TS_MS)) {
@@ -120,7 +132,7 @@ STATIC void CONTROLLER_PID(void *per) {
     while (TRUE)
     #endif
     {   
-        input_mv = INTERFACE_ADCRead();
+        input_mv = INTERFACE_ADCRead(1);
         uint32_t input_q15 = (Q15_SCALE(input_mv)) / 3300;
         uint32_t u = PidRecurrenceFunction((2 * r[r_index] - input_q15));
         reference = (r[r_index] * 3300) >> 15;
@@ -134,6 +146,49 @@ STATIC void CONTROLLER_PID(void *per) {
         }
         static char str[150];
         sprintf(str,"%d,%d,%d,%.d\n",OSAL_TASK_GetTickCount(), reference, u, input_mv);
+        uartWriteString(UART_USB, str);
+        
+        OSAL_TASK_DelayUntil(&last_enter_to_task, OSAL_MS_TO_TICKS(TS_MS));
+    }
+}
+
+static void CONTROLLER_PolePlacementControl(void *per) {
+	pole_placement_config_t pole_placement_config;
+
+    pole_placement_config.K[0] = 0.6317995;
+    pole_placement_config.K[1] = 0.5200096;
+    pole_placement_config.Ko = 2.15;
+
+    uint8_t period = *((uint8_t *) per);
+
+    static const double r[2] = {2.0, 1.0};
+
+    static uint8_t r_index = 0;
+    static uint32_t count = 0;
+    
+    osal_tick_t last_enter_to_task = OSAL_TASK_GetTickCount();
+
+    #ifndef TEST
+    while (TRUE)
+    #endif
+    {   
+        static double state[2];
+
+        state[0] = (double)(INTERFACE_ADCRead(1)/1000.0);
+        state[1] = (double)(INTERFACE_ADCRead(2)/1000.0);
+
+        double voltage = PolePlacementControl(&pole_placement_config, state, r[r_index]);
+        uint16_t u = (uint16_t)(voltage * 1000);
+        
+        INTERFACE_DACWriteMv(u);
+
+        count++;
+        if (count >= ((period * 1000 / 2) / TS_MS)) {
+            count = 0;
+            r_index ^= 1;
+        }
+        static char str[150];
+        sprintf(str,"%d,%d,%d,%.d\n", OSAL_TASK_GetTickCount(), (uint16_t)(r[r_index]*1000), u, INTERFACE_ADCRead(1));
         uartWriteString(UART_USB, str);
         
         OSAL_TASK_DelayUntil(&last_enter_to_task, OSAL_MS_TO_TICKS(TS_MS));
@@ -169,6 +224,10 @@ STATIC int32_t PidRecurrenceFunction(int32_t input) {
     output_buffer[0] = output;
 
     return output;
+}
+
+double PolePlacementControl(pole_placement_config_t *config, double state[2], double reference) {
+	return ((config->Ko * reference) - (config->K[0] * state[0] + config->K[1] * state[1]));
 }
 
 /*========= [INTERRUPT FUNCTION IMPLEMENTATION] ================================*/

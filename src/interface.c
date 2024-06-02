@@ -14,7 +14,7 @@
 
 #define SIMULATED 0
 #define REAL      1
-#define PLANTA SIMULATED
+#define PLANTA REAL
 
 #if (PLANTA == SIMULATED)
 #include "real_world.h"
@@ -38,7 +38,7 @@
 /*========= [LOCAL VARIABLES] ==================================================*/
 
 #if (PLANTA == REAL)
-STATIC uint16_t value10bit = 0;
+STATIC uint16_t value10bit[2] = {0,0};
 #endif
 
 /*========= [PUBLIC FUNCTION IMPLEMENTATIONS] ==================================*/
@@ -64,7 +64,8 @@ void INTERFACE_DACWriteMv(uint16_t output_dac_mv) {
     REAL_WORLD_Input(value_q15);
     #elif (PLANTA == REAL)
     dacWrite( DAC, value_q15 >> 5 );
-    value10bit = adcRead( CH1 );
+    value10bit[0] = adcRead( CH1 );
+    value10bit[1] = adcRead( CH2 );
     #endif
 }
 
@@ -73,7 +74,7 @@ void INTERFACE_DACWriteMv(uint16_t output_dac_mv) {
  *
  * @return uint16_t Value read from the ADC in millivolts.
  */
-uint16_t INTERFACE_ADCRead(void) {
+uint16_t INTERFACE_ADCRead(uint8_t ch) {
     // Read Q15 value from ADC
     uint16_t input_adc_mv = 0; 
     #if (PLANTA == SIMULATED)
@@ -82,8 +83,11 @@ uint16_t INTERFACE_ADCRead(void) {
     // Convert Q15 to millivolts
     input_adc_mv = (value_q15 * ADC_MAX_MV) >> 15;
     #elif (PLANTA == REAL)
-    input_adc_mv = (value10bit * ADC_MAX_MV) >> 10;
+    input_adc_mv = (value10bit[ch-1] * ADC_MAX_MV) >> 10;
     #endif
 
     return input_adc_mv;
 }
+
+
+
