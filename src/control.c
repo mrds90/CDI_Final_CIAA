@@ -155,9 +155,9 @@ STATIC void CONTROLLER_PID(void *per) {
 static void CONTROLLER_PolePlacementControl(void *per) {
 	pole_placement_config_t pole_placement_config;
 
-    pole_placement_config.K[0] = 0.6317995;
-    pole_placement_config.K[1] = 0.5200096;
-    pole_placement_config.Ko = 2.15;
+    pole_placement_config.K[0] = 0.4881977;
+    pole_placement_config.K[1] = 0.6236087;
+    pole_placement_config.Ko = 2.115;
 
     uint8_t period = *((uint8_t *) per);
 
