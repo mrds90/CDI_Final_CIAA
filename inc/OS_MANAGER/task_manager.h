@@ -28,7 +28,7 @@ extern "C"
 #define STACK_SIZE(x)           ((x) * OSAL_ATOMIC_TASK_SIZE)
 
 #define STACK_SIZE_REAL_WORLD       STACK_SIZE(2)
-#define STACK_SIZE_CONTROLLER       STACK_SIZE(2)
+#define STACK_SIZE_CONTROLLER       STACK_SIZE(5)
 #define STACK_SIZE_IDENTIFICACION   STACK_SIZE(5)
 
 /*================ PUBLIC DATA TYPE ====================================================*/
