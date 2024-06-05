@@ -37,9 +37,7 @@
 
 /*========= [LOCAL VARIABLES] ==================================================*/
 
-#if (PLANTA == REAL)
 STATIC uint16_t value10bit[2] = {0,0};
-#endif
 
 /*========= [PUBLIC FUNCTION IMPLEMENTATIONS] ==================================*/
 
@@ -78,10 +76,8 @@ uint16_t INTERFACE_ADCRead(uint8_t ch) {
     // Read Q15 value from ADC
     uint16_t input_adc_mv = 0; 
     #if (PLANTA == SIMULATED)
-    int32_t value_q15 = 0;
-    value_q15 = REAL_WORLD_Output();
-    // Convert Q15 to millivolts
-    input_adc_mv = (value_q15 * ADC_MAX_MV) >> 15;
+    value10bit[0] = REAL_WORLD_Output();
+    input_adc_mv = (value10bit[ch-1] * ADC_MAX_MV) >> 15;
     #elif (PLANTA == REAL)
     input_adc_mv = (value10bit[ch-1] * ADC_MAX_MV) >> 10;
     #endif

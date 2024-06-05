@@ -24,7 +24,7 @@
 #define POLE_PLACEMENT      3
 #define POLE_PLACEMENT_OBSERVED 4
 
-#define CONTROL_TASK POLE_PLACEMENT_OBSERVED
+#define CONTROL_TASK POLE_PLACEMENT
 
 #define V_TO_MV(x)  ((x) * 1000)
 #define N_SAMPLES (1 << 8)
@@ -46,6 +46,8 @@
 
 
 #define MUL_ELEMENTS(x,y)  ((x)*(y))
+
+#define ERROR(r,x) (2 * (r) - (x))
 
 /*========= [PRIVATE DATA TYPES] ===============================================*/
 
@@ -146,7 +148,7 @@ STATIC void CONTROLLER_PID(void *per) {
     {   
         input_mv = INTERFACE_ADCRead(1);
         uint32_t input_q15 = (Q15_SCALE(input_mv)) / 3300;
-        uint32_t u = PidRecurrenceFunction((2 * r[r_index] - input_q15));
+        uint32_t u = PidRecurrenceFunction(ERROR(r[r_index],input_q15));
         reference = (r[r_index] * 3300) >> 15;
         u = (u * 3300) >> 15;
         INTERFACE_DACWriteMv(u);
@@ -252,8 +254,6 @@ static void CONTROLLER_PolePlacementControlObserver(void *per) {
 
             
         for (int i = 0; i < 2; i++) {
-        // Iterar sobre las columnas de B
-            // Calcular el producto escalar de la fila i de A y la columna j de B
             x_est_tempA[i] = 0;
             for (int j = 0; j < 2; j++) {
                 x_est_tempA[i] += MUL_ELEMENTS(pole_placement_config.A[i][j], x_est[j]);

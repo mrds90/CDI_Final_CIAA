@@ -18,13 +18,9 @@
 
 /*========= [PRIVATE MACROS AND CONSTANTS] =====================================*/
 
-#define ORDER 2
-#define MAX_SAMPLES 200
+#define DATA_SIZE 400
 
-#define DATA_SIZE 100
-
-#define A_SIZE 3
-#define B_SIZE 2
+#define MUL_ELEMENTS(a, b) ((a)*(b))
 
 /*========= [PRIVATE DATA TYPES] ===============================================*/
 
@@ -32,28 +28,27 @@
 
 /*========= [PRIVATE FUNCTION DECLARATIONS] ====================================*/
 
-static void generate_prbs_signal(double *u, int size);
+static void generate_prbs_signal(float *u, int size);
 
 static void IdentificacionTask(void* not_used);
 
-static void acquire_output_signal(double *u, double *y, int size);
+static void acquire_output_signal(float *u, float *y, int size);
 
-static void invert_matrix(double A[5][5], double A_inv[5][5]);
+static void InvertMatrix(float A[5][5], float A_inv[5][5]);
 
-static void least_squares(double *u, double *y, int size, double *a, double *b);
+static void LeastSquares(float *u, float *y, int size, float *a, float *b);
 
 static void IdentificacionTask(void* not_used);
 
-static double q15_mult(double a, double b);
-
-static double q15_div(double a, double b);
+static float q15_div(float a, float b);
 
 /*========= [INTERRUPT FUNCTION DECLARATIONS] ==================================*/
 
 /*========= [LOCAL VARIABLES] ==================================================*/
 
-STATIC double u[DATA_SIZE]; // Entrada
-STATIC double y[DATA_SIZE]; // Salida
+STATIC float u[DATA_SIZE] = {[0 ... (DATA_SIZE - 1)] = 0}; // Entrada
+
+STATIC float y[DATA_SIZE] = {[0 ... (DATA_SIZE - 1)] = 0}; // Salida
 
 /*========= [STATE FUNCTION POINTERS] ==========================================*/
 
@@ -73,12 +68,12 @@ void IDENTIFICACION_Init(void) {
 static void IdentificacionTask(void* not_used) {
     INTERFACE_Init();   
     OSAL_TASK_Delay(2000);
-    double a[3], b[2];
+    float a[3], b[2];
 
 
     generate_prbs_signal(u, DATA_SIZE);
     acquire_output_signal(u, y, DATA_SIZE);
-    least_squares(u, y, DATA_SIZE, a, b);
+    LeastSquares(u, y, DATA_SIZE, a, b);
     
     static char str[150];
     sprintf(str, "Identified system parameters:\n");
@@ -92,18 +87,14 @@ static void IdentificacionTask(void* not_used) {
 
 }
 
-double q15_mult(double a, double b) {
-    return (a * b);
-}
-
 // Función para dividir dos números Q15
-double q15_div(double a, double b) {
+float q15_div(float a, float b) {
     // Asegurarse de que no hay división por cero
 
-    return (double)(a / b);
+    return (float)(a / b);
 }
 
-static void generate_prbs_signal(double *u, int size) {
+static void generate_prbs_signal(float *u, int size) {
     uint16_t lfsr = 0xACE1u; // Estado inicial no nulo
     uint16_t bit;
 
@@ -113,11 +104,11 @@ static void generate_prbs_signal(double *u, int size) {
         lfsr = (lfsr >> 1) | (bit << 15);
 
         // Mapear el valor del PRBS a +1 o -1
-        u[i] = (lfsr & 1) ? -1.0 : 1.0;
+        u[i] = (lfsr & 1) ? 1 : 0;
     }
 }
 
-static void acquire_output_signal(double *u, double *y, int size) {
+static void acquire_output_signal(float *u, float *y, int size) {
     STATIC osal_tick_t last_wake;
     last_wake = OSAL_TASK_GetTickCount();
     
@@ -130,9 +121,9 @@ static void acquire_output_signal(double *u, double *y, int size) {
 }
 
 // Función para invertir una matriz 5x5 (Gauss-Jordan)
-static void invert_matrix(double A[5][5], double A_inv[5][5]) {
+void InvertMatrix(float A[5][5], float A_inv[5][5]) {
     int i, j, k;
-    double ratio, a;
+    float ratio, a;
 
     // Inicializar A_inv como matriz identidad
     for (i = 0; i < 5; i++) {
@@ -152,28 +143,26 @@ static void invert_matrix(double A[5][5], double A_inv[5][5]) {
             if (k != i) {
                 ratio = A[k][i];
                 for (j = 0; j < 5; j++) {
-                    A[k][j] -= q15_mult(ratio, A[i][j]);
-                    A_inv[k][j] -= q15_mult(ratio, A_inv[i][j]);
+                    A[k][j] -= MUL_ELEMENTS(ratio, A[i][j]);
+                    A_inv[k][j] -= MUL_ELEMENTS(ratio, A_inv[i][j]);
                 }
             }
         }
     }
 }
 
-
 // Función para resolver el sistema de ecuaciones utilizando cuadrados mínimos
-void least_squares(double *u, double *y, int size, double *a, double *b) {
-    static double Phi[DATA_SIZE][5] = {
+void LeastSquares(float *u, float *y, int size, float *a, float *b) {
+    static float Phi[DATA_SIZE][5] = {
         [0 ... DATA_SIZE -1 ] = {
             [0 ... 4] = 0
         }
     }; // Matriz de diseño
-    static double Y[DATA_SIZE] = {[0 ... DATA_SIZE -1 ] = 0};    // Vector de salida
-    static double PhiT[5][DATA_SIZE]; // Transpuesta de Phi
-    static double PhiTPhi[5][5];       // PhiT * Phi
-    static double XtY[5];          // PhiT * Y
-    static double invPhiTPhi[5][5];    // Inversa de PhiTPhi
-    static double invPhiTPhiPhiT[5][DATA_SIZE] = {
+    static float Y[DATA_SIZE] = {[0 ... DATA_SIZE -1 ] = 0};    // Vector de salida
+    static float PhiTPhi[5][5];       // PhiT * Phi
+    static float XtY[5];          // PhiT * Y
+    static float invPhiTPhi[5][5];    // Inversa de PhiTPhi
+    static float invPhiTPhiPhiT[5][DATA_SIZE] = {
         [0 ... 4] = {
             [0 ... DATA_SIZE -1 ] = 0
         }
@@ -189,31 +178,24 @@ void least_squares(double *u, double *y, int size, double *a, double *b) {
         Y[i - 2] = y[i];
     }
 
-    // Calcular PhiT
-    for (int i = 0; i < 5; i++) {
-        for (int j = 0; j < size; j++) {
-            PhiT[i][j] = Phi[j][i];
-        }
-    }
-
     // Calcular PhiTPhi
     for (int i = 0; i < 5; i++) {
         for (int j = 0; j < 5; j++) {
             PhiTPhi[i][j] = 0;
             for (int k = 0; k < size; k++) {
-                PhiTPhi[i][j] += q15_mult(PhiT[i][k], Phi[k][j]);
+                PhiTPhi[i][j] += MUL_ELEMENTS(Phi[k][i], Phi[k][j]);
             }
         }
     }
 
-    invert_matrix(PhiTPhi, invPhiTPhi);
+    InvertMatrix(PhiTPhi, invPhiTPhi);
 
     // Calcular invPhiTPhiPhiT
     for (int i = 0; i < 5; i++) {
         for (int j = 0; j < size; j++) {
             invPhiTPhiPhiT[i][j] = 0;
             for (int k = 0; k < 5; k++) {
-                invPhiTPhiPhiT[i][j] += q15_mult(invPhiTPhi[i][k], PhiT[k][j]);
+                invPhiTPhiPhiT[i][j] += MUL_ELEMENTS(invPhiTPhi[i][k], Phi[j][k]);
             }
         }
     }
@@ -222,16 +204,16 @@ void least_squares(double *u, double *y, int size, double *a, double *b) {
     for (int i = 0; i < 5; i++) {
         XtY[i] = 0;
         for (int j = 0; j < size; j++) {
-            XtY[i] += q15_mult(invPhiTPhiPhiT[i][j], Y[j]);
+            XtY[i] += MUL_ELEMENTS(invPhiTPhiPhiT[i][j], Y[j]);
         }
     }
 
 
     a[0] = 1;
-    a[1] = XtY[0];
-    a[2] = XtY[1];
-    b[0] = XtY[2];
-    b[1] = XtY[3];
+    a[1] = -XtY[0];
+    a[2] = -XtY[1];
+    b[0] = XtY[3];
+    b[1] = XtY[4];
 }
 
 /*========= [INTERRUPT FUNCTION IMPLEMENTATION] ================================*/
