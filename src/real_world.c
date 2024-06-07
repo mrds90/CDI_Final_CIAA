@@ -13,14 +13,15 @@
 #include "real_world.h"
 #include "osal_task.h"
 #include <string.h>
+
 /*========= [PRIVATE MACROS AND CONSTANTS] =====================================*/
 
 #define NUM_SIZE 2
 #define DEN_SIZE 3
 
 // Coeficientes del numerador en Q15
-#define NUM0 Q15_SCALE(0.04976845)
-#define NUM1 Q15_SCALE(0.03505064)
+#define NUM0 Q15_SCALE(0.04976845243756167)
+#define NUM1 Q15_SCALE(0.035050642374672925)
 
 // Coeficientes del denominador en Q15
 #define DEN0 Q15_SCALE(1.0)

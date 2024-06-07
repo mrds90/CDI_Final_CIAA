@@ -14,12 +14,18 @@
 
 #define SIMULATED 0
 #define REAL      1
-#define PLANTA REAL
+#define PLANTA SIMULATED
 
 #if (PLANTA == SIMULATED)
 #include "real_world.h"
 #elif (PLANTA == REAL)
+#ifndef TEST
 #include "sapi.h"
+#else
+#include "real_world.h"
+#define adcRead(x) REAL_WORLD_Output()
+#define dacWrite(DAC, value) REAL_WORLD_Input((value) << 5)
+#endif
 #endif
 
 /*========= [PRIVATE MACROS AND CONSTANTS] =====================================*/
@@ -37,7 +43,7 @@
 
 /*========= [LOCAL VARIABLES] ==================================================*/
 
-STATIC uint16_t value10bit[2] = {0,0};
+STATIC uint16_t value10bit[2] = {0, 0};
 
 /*========= [PUBLIC FUNCTION IMPLEMENTATIONS] ==================================*/
 
@@ -45,8 +51,10 @@ void INTERFACE_Init(void) {
     #if (PLANTA == SIMULATED)
     REAL_WORLD_Init();
     #elif (PLANTA == REAL)
-    adcConfig( ADC_ENABLE ); /* ADC */
-    dacConfig( DAC_ENABLE ); /* DAC */
+    #ifndef TEST
+    adcConfig(ADC_ENABLE);   /* ADC */
+    dacConfig(DAC_ENABLE);   /* DAC */
+    #endif
     #endif
 }
 
@@ -61,9 +69,9 @@ void INTERFACE_DACWriteMv(uint16_t output_dac_mv) {
     #if (PLANTA == SIMULATED)
     REAL_WORLD_Input(value_q15);
     #elif (PLANTA == REAL)
-    dacWrite( DAC, value_q15 >> 5 );
-    value10bit[0] = adcRead( CH1 );
-    value10bit[1] = adcRead( CH2 );
+    dacWrite(DAC, value_q15 >> 5);
+    value10bit[0] = adcRead(CH1);
+    value10bit[1] = adcRead(CH2);
     #endif
 }
 
@@ -74,16 +82,13 @@ void INTERFACE_DACWriteMv(uint16_t output_dac_mv) {
  */
 uint16_t INTERFACE_ADCRead(uint8_t ch) {
     // Read Q15 value from ADC
-    uint16_t input_adc_mv = 0; 
+    uint16_t input_adc_mv = 0;
     #if (PLANTA == SIMULATED)
     value10bit[0] = REAL_WORLD_Output();
-    input_adc_mv = (value10bit[ch-1] * ADC_MAX_MV) >> 15;
+    input_adc_mv = (value10bit[ch - 1] * ADC_MAX_MV) >> 15;
     #elif (PLANTA == REAL)
-    input_adc_mv = (value10bit[ch-1] * ADC_MAX_MV) >> 10;
+    input_adc_mv = (value10bit[ch - 1] * ADC_MAX_MV) >> 10;
     #endif
 
     return input_adc_mv;
 }
-
-
-

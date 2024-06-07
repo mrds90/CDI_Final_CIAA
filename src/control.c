@@ -15,7 +15,12 @@
 #include "task_manager.h"
 #include <stdio.h>
 #include <string.h>
+#ifndef TEST
 #include "sapi.h"
+#else
+#define UART_USB 1
+#define uartWriteString(UART_USB, str) printf("%s",str)
+#endif
 /*========= [PRIVATE MACROS AND CONSTANTS] =====================================*/
 
 
@@ -24,7 +29,7 @@
 #define POLE_PLACEMENT      3
 #define POLE_PLACEMENT_OBSERVED 4
 
-#define CONTROL_TASK POLE_PLACEMENT
+#define CONTROL_TASK PID_CONTROL
 
 #define V_TO_MV(x)  ((x) * 1000)
 #define N_SAMPLES (1 << 8)
