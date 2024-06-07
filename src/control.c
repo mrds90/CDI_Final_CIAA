@@ -222,14 +222,14 @@ static void CONTROLLER_PolePlacementControlObserver(void *per) {
            },
        .B = {1, 0},
        .C = {0.05233013, 0.03648923},
-       .K = {0.4881977, 0.6236087},
-       .Ko = 2.115
+       .K = {0.04881977, 0.06236087},
+       .Ko = 2.2517611841175635
     };
 
    pole_placement_config.K[0] = 1.3581298;
    pole_placement_config.K[1] = -0.9386444;
    pole_placement_config.Ko = 1.47229047;
-   static const double L[2] = {0.4881977, 0.6236087};
+   static const double L[2] = {-4.64320567, -12.13743388};
    uint8_t period = *((uint8_t *) per);
 
    static const double r[2] = {2.0, 1.0};
@@ -292,30 +292,6 @@ static void CONTROLLER_PolePlacementControlObserver(void *per) {
 
 /*========= [PRIVATE FUNCTION IMPLEMENTATION] ==================================*/
 
-// STATIC void MatrixMultiply(double **AB, double **A, double **B, int M, int N, int L) {
-//     // Representación del producto matricial:
-//     //       A[M][N]                B[N][L]               AB[M][L]
-//     //  [ A11 A12 ... A1N ]   [ B11 B12 ... B1L ]   [ AB11 AB12 ... AB1L ]
-//     //  [ A21 A22 ... A2N ]   [ B21 B22 ... B2L ]   [ AB21 AB22 ... AB2L ]
-//     //  [ ... ... ... ... ] X [ ... ... ... ... ] = [ ...  ...  ...  ... ]
-//     //  [ AM1 AM2 ... AMN ]   [ BN1 BN2 ... BNL ]   [ ABM1 ABM2 ... ABML ]
-//     //
-//     // Donde AB[i][j] = suma de (A[i][k] * B[k][j]) para k=0 hasta N-1
-
-//     // Iterar sobre las filas de A
-//     for (int i = 0; i < M; i++) {
-//         // Iterar sobre las columnas de B
-//         for (int j = 0; j < L; j++) {
-//             // Inicializar el elemento AB[i][j] a 0
-//             AB[i][j] = 0;
-//             // Calcular el producto escalar de la fila i de A y la columna j de B
-//             for (int k = 0; k < N; k++) {
-//                 AB[i][j] += A[i][k] * B[k][j];
-//             }
-//         }
-//     }
-// }
-
 STATIC int32_t PidRecurrenceFunction(int32_t input) {
 // Buffers para mantener el estado
     static int32_t input_buffer[NUM_SIZE] = {[0 ... (NUM_SIZE - 1)] = 0};
@@ -346,11 +322,7 @@ STATIC int32_t PidRecurrenceFunction(int32_t input) {
 }
 
 double PolePlacementControl(pole_placement_config_t *config, double state[2], double reference) {
-    #if (CONTROL_TASK == POLE_PLACEMENT_OBSERVED)
-    double Ko = 3.89 * config->Ko;
-    #else
     double Ko = config->Ko;
-    #endif
 	return ((Ko * reference) - (config->K[0] * state[0] + config->K[1] * state[1]));
 }
 
