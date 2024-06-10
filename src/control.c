@@ -13,6 +13,8 @@
 #include "control.h"
 #include "interface.h"
 #include "task_manager.h"
+#include "pid.h"
+
 #include <stdio.h>
 #include <string.h>
 #ifndef TEST
@@ -34,20 +36,6 @@
 #define V_TO_MV(x)  ((x) * 1000)
 #define N_SAMPLES (1 << 8)
 #define TS_MS         5
-
-#define NUM_SIZE 3
-#define DEN_SIZE 3
-
-// Coeficientes del numerador en Q15
-
-#define NUM0 Q15_SCALE(1)
-#define NUM1 Q15_SCALE(-1.35569551)
-#define NUM2 Q15_SCALE(0.42632345)
-
-// Coeficientes del denominador en Q15
-#define DEN0 Q15_SCALE(1)
-#define DEN1 Q15_SCALE(-1.21587686)
-#define DEN2 Q15_SCALE(0.2865048)
 
 
 #define MUL_ELEMENTS(x,y)  ((x)*(y))
@@ -153,7 +141,7 @@ STATIC void CONTROLLER_PID(void *per) {
     {   
         input_mv = INTERFACE_ADCRead(1);
         uint32_t input_q15 = (Q15_SCALE(input_mv)) / 3300;
-        uint32_t u = PidRecurrenceFunction(ERROR(r[r_index],input_q15));
+        uint32_t u = PID_Filter(ERROR(r[r_index],input_q15));
         reference = (r[r_index] * 3300) >> 15;
         u = (u * 3300) >> 15;
         INTERFACE_DACWriteMv(u);
@@ -291,35 +279,6 @@ static void CONTROLLER_PolePlacementControlObserver(void *per) {
 
 
 /*========= [PRIVATE FUNCTION IMPLEMENTATION] ==================================*/
-
-STATIC int32_t PidRecurrenceFunction(int32_t input) {
-// Buffers para mantener el estado
-    static int32_t input_buffer[NUM_SIZE] = {[0 ... (NUM_SIZE - 1)] = 0};
-    static int32_t output_buffer[DEN_SIZE - 1] = {[0 ... (DEN_SIZE - 2)] = 0};
-    // Desplazar valores en el buffer de entrada
-    for (int i = NUM_SIZE - 1; i > 0; --i) {
-        input_buffer[i] = input_buffer[i - 1];
-    }
-    input_buffer[0] = input;
-
-    // Calcular la parte del numerador
-    int32_t output = 0;
-    output += (NUM0 * input_buffer[0]) >> 15;
-    output += (NUM1 * input_buffer[1]) >> 15;
-    output += (NUM2 * input_buffer[2]) >> 15;
-
-    // Calcular la parte del denominador
-    output -= (DEN1 * output_buffer[0]) >> 15;
-    output -= (DEN2 * output_buffer[1]) >> 15;
-
-    // Desplazar valores en el buffer de salida
-    for (int i = DEN_SIZE - 2; i > 0; --i) {
-        output_buffer[i] = output_buffer[i - 1];
-    }
-    output_buffer[0] = output;
-
-    return output;
-}
 
 double PolePlacementControl(pole_placement_config_t *config, double state[2], double reference) {
     double Ko = config->Ko;
