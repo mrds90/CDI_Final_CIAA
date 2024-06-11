@@ -13,10 +13,20 @@
 #include "pid.h"
 #include <string.h>
 
+
 /*========= [PRIVATE MACROS AND CONSTANTS] =====================================*/
 
 #ifndef MUL_ELEMENTS
-#define MUL_ELEMENTS(x,y)  ((x) * (y))
+#define MUL_ELEMENTS(x, y)  ((x) * (y))
+#endif
+#ifndef MUL_ELEMENTS_Q15
+#define MUL_ELEMENTS_Q15(x, y)  (MUL_ELEMENTS(x, y) >> 15)
+#endif
+#ifndef MUL_SUM_ELEMENTS_Q15
+#define MUL_SUM_ELEMENTS_Q15(x, y, z) ((z) + MUL_ELEMENTS_Q15((x), (y)))
+#endif
+#ifndef MUL_SUB_ELEMENTS_Q15
+#define MUL_SUB_ELEMENTS_Q15(x, y, z) ((z) - MUL_ELEMENTS_Q15((x), (y)))
 #endif
 
 #define F_TO_Q15(x)  (int32_t)((x) * (1 << 15))
@@ -65,13 +75,13 @@ int32_t PID_Filter(int32_t input) {
 
     /* Calculate the numerator part */
     int32_t output = 0;
-    output += MUL_ELEMENTS(NUM0, input_buffer[0]) >> 15;
-    output += MUL_ELEMENTS(NUM1, input_buffer[1]) >> 15;
-    output += MUL_ELEMENTS(NUM2, input_buffer[2]) >> 15;
+    output = MUL_SUM_ELEMENTS_Q15(NUM0, input_buffer[0], output);
+    output = MUL_SUM_ELEMENTS_Q15(NUM1, input_buffer[1], output);
+    output = MUL_SUM_ELEMENTS_Q15(NUM2, input_buffer[2], output);
 
     /* Calculate the denominator part */
-    output -= MUL_ELEMENTS(DEN1, output_buffer[0]) >> 15;
-    output -= MUL_ELEMENTS(DEN2, output_buffer[1]) >> 15;
+    output = MUL_SUB_ELEMENTS_Q15(DEN1, output_buffer[0], output);
+    output = MUL_SUB_ELEMENTS_Q15(DEN2, output_buffer[1], output);
 
     /* Shift values in the output buffer */
     for (int i = DEN_SIZE - 2; i > 0; --i) {
