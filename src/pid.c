@@ -1,4 +1,3 @@
-
 /**
  * @file pid.c
  * @author Marcos Dominguez
@@ -6,7 +5,7 @@
  * @brief Module description
  *
  * @version X.Y
- * @date 2024-06-10
+ * @date 2024-06-11
  */
 
 /*========= [DEPENDENCIES] =====================================================*/
@@ -16,20 +15,24 @@
 
 /*========= [PRIVATE MACROS AND CONSTANTS] =====================================*/
 
+#ifndef MUL_ELEMENTS
+#define MUL_ELEMENTS(x,y)  ((x) * (y))
+#endif
+
 #define F_TO_Q15(x)  (int32_t)((x) * (1 << 15))
 
 #define NUM_SIZE 3
 #define DEN_SIZE 3
 
-// Numerator coefficients in Q15
+/* Numerator coefficients in Q15 */
 #define NUM0 F_TO_Q15(1.0)
-#define NUM1 F_TO_Q15(-1.35569551)
-#define NUM2 F_TO_Q15(0.42632345)
+#define NUM1 F_TO_Q15(-1.3556955132594553)
+#define NUM2 F_TO_Q15(0.4263234504891082)
 
-// Denominator coefficients in Q15
+/* Denominator coefficients in Q15 */
 #define DEN0 F_TO_Q15(1.0)
-#define DEN1 F_TO_Q15(-1.21587686)
-#define DEN2 F_TO_Q15(0.2865048)
+#define DEN1 F_TO_Q15(-1.2158768596305372)
+#define DEN2 F_TO_Q15(0.28650479686019026)
 
 /*========= [PRIVATE DATA TYPES] ===============================================*/
 
@@ -69,25 +72,23 @@ int32_t PID_Reset() {
  * @return Filtered output signal in Q15 format.
  */
 int32_t PID_Filter(int32_t input) {
-    // Shift values in the input buffer
+    /* Shift values in the input buffer */
     for (int i = NUM_SIZE - 1; i > 0; --i) {
         input_buffer[i] = input_buffer[i - 1];
     }
     input_buffer[0] = input;
 
-    // Calculate the numerator part
+    /* Calculate the numerator part */
     int32_t output = 0;
-    output += (NUM0 * input_buffer[0]) >> 15;
-    output += (NUM1 * input_buffer[1]) >> 15;
-    output += (NUM2 * input_buffer[2]) >> 15;
+    output += MUL_ELEMENTS(NUM0, input_buffer[0]) >> 15;
+    output += MUL_ELEMENTS(NUM1, input_buffer[1]) >> 15;
+    output += MUL_ELEMENTS(NUM2, input_buffer[2]) >> 15;
 
+    /* Calculate the denominator part */
+    output -= MUL_ELEMENTS(DEN1, output_buffer[0]) >> 15;
+    output -= MUL_ELEMENTS(DEN2, output_buffer[1]) >> 15;
 
-    // Calculate the denominator part
-    output -= (DEN1 * output_buffer[0]) >> 15;
-    output -= (DEN2 * output_buffer[1]) >> 15;
-
-
-    // Shift values in the output buffer
+    /* Shift values in the output buffer */
     for (int i = DEN_SIZE - 2; i > 0; --i) {
         output_buffer[i] = output_buffer[i - 1];
     }
