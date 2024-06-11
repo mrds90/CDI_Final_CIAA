@@ -51,26 +51,11 @@ static int32_t output_buffer[DEN_SIZE - 1] = {[0 ... (DEN_SIZE - 2)] = 0};
 
 /*========= [PUBLIC FUNCTION IMPLEMENTATION] ===================================*/
 
-/**
- * @brief Resets the filter state.
- *
- * This function resets the internal state of the filter buffers.
- */
 int32_t PID_Reset() {
     memset(output_buffer, 0, sizeof(output_buffer));
     memset(input_buffer, 0, sizeof(input_buffer));
 }
 
-/**
- * @brief Filters input signal using a digital filter.
- *
- * This function implements a digital filter to process the input signal. It takes
- * the input signal in Q15 format and applies a numerator-denominator filter with
- * coefficients provided as Q15 fixed-point values.
- *
- * @param input Input signal in Q15 format.
- * @return Filtered output signal in Q15 format.
- */
 int32_t PID_Filter(int32_t input) {
     /* Shift values in the input buffer */
     for (int i = NUM_SIZE - 1; i > 0; --i) {

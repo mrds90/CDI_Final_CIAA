@@ -26,7 +26,7 @@
  *
  * This function resets the internal state of the filter buffers.
  */
-int32_t PID_Reset();
+int32_t PID_Reset(void);
 
 /**
  * @brief Filters input signal using a digital filter.
