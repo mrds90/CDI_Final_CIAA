@@ -5,7 +5,7 @@
  * @brief Module description
  *
  * @version X.Y
- * @date 2024-06-11
+ * @date 2024-06-12
  */
 
 /*========= [DEPENDENCIES] =====================================================*/
@@ -61,8 +61,8 @@ static int32_t output_buffer[DEN_SIZE - 1] = {[0 ... (DEN_SIZE - 2)] = 0};
 /*========= [PUBLIC FUNCTION IMPLEMENTATION] ===================================*/
 
 int32_t REAL_WORLD_FILTER_Reset() {
-    memset(output_buffer, 0, sizeof(output_buffer));
     memset(input_buffer, 0, sizeof(input_buffer));
+    memset(output_buffer, 0, sizeof(output_buffer));
 }
 
 int32_t REAL_WORLD_FILTER_Filter(int32_t input) {
